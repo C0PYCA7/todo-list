@@ -9,6 +9,7 @@ import (
 	"todo-list/internal/config"
 	"todo-list/internal/database/postgres"
 	"todo-list/internal/http-server/handlers/auth"
+	"todo-list/internal/http-server/handlers/user"
 )
 
 func main() {
@@ -24,14 +25,15 @@ func main() {
 		log.Error("failed to init database", err)
 		os.Exit(1)
 	}
-	_ = database
 
 	router := chi.NewRouter()
 
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
 
 	router.Post("/auth", auth.New(log, database))
+	router.Post("/newUser", user.New(log, database))
 
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Address))
 

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"todo-list/internal/database/postgres"
 	"todo-list/internal/lib/api/response"
+	"todo-list/internal/lib/slogErr"
 )
 
 type Request struct {
@@ -63,19 +64,14 @@ func New(log *slog.Logger, checkUser CheckUser) http.HandlerFunc {
 			return
 		}
 		if err != nil {
-			log.Error("failed to check user existence")
+			log.Error("failed to check user existence", slogErr.Err(err))
 
 			render.JSON(w, r, response.Error("internal error"))
 
 			return
 		}
 		log.Info("check user", slog.String("id", strconv.FormatInt(id, 10)))
-		responseOK(w, r)
-	}
-}
+		render.JSON(w, r, Response{Response: response.OK()})
 
-func responseOK(w http.ResponseWriter, r *http.Request) {
-	render.JSON(w, r, Response{
-		Response: response.OK(),
-	})
+	}
 }
