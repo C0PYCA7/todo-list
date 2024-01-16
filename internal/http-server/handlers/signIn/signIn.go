@@ -1,4 +1,4 @@
-package user
+package signIn
 
 import (
 	"errors"
@@ -23,13 +23,13 @@ type Response struct {
 	Name string `json:"name,omitempty"`
 }
 
-type CreateUser interface {
-	CreateUser(name, login, password string) (int64, error)
+type SignIn interface {
+	SignIn(name, login, password string) (int64, error)
 }
 
-func New(log *slog.Logger, user CreateUser) http.HandlerFunc {
+func New(log *slog.Logger, signIn SignIn) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers/user/user/New"
+		const op = "handlers/signIn/signIn/New"
 
 		log = log.With(
 			slog.String("op", op),
@@ -52,7 +52,7 @@ func New(log *slog.Logger, user CreateUser) http.HandlerFunc {
 			return
 		}
 
-		id, err := user.CreateUser(req.Name, req.Login, req.Password)
+		id, err := signIn.SignIn(req.Name, req.Login, req.Password)
 		if errors.Is(err, postgres.ErrUserNameExists) {
 			log.Info("username already exists", slog.String("name", req.Name))
 
@@ -60,22 +60,23 @@ func New(log *slog.Logger, user CreateUser) http.HandlerFunc {
 
 			return
 		} else if errors.Is(err, postgres.ErrUserLoginExists) {
-			log.Info("user with this login already exists", slog.String("login", req.Login))
+			log.Info("signIn with this login already exists", slog.String("login", req.Login))
 
-			render.JSON(w, r, response.Error("user with this login already exists"))
+			render.JSON(w, r, response.Error("signIn with this login already exists"))
 
 			return
 		}
 
 		if err != nil {
-			log.Error("failed to add user", slogErr.Err(err))
+			log.Error("failed to add signIn", slogErr.Err(err))
 
-			render.JSON(w, r, response.Error("failed to add user"))
+			render.JSON(w, r, response.Error("failed to add signIn"))
 
 			return
 		}
 
-		log.Info("user added", slog.Int64("id", id))
+		log.Info("signIn added", slog.Int64("id", id))
 		render.JSON(w, r, Response{Response: response.OK()})
+		http.Redirect(w, r, "/auth", http.StatusOK)
 	}
 }

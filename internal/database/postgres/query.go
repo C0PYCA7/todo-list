@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/lib/pq"
+	_ "github.com/lib/pq"
+	"time"
 )
 
 func CreateTables(db *sql.DB) error {
@@ -23,17 +25,12 @@ func CreateTables(db *sql.DB) error {
 	    password VARCHAR(255)
 	);
 
-	CREATE TABLE IF NOT EXISTS status(
-	    id SERIAL PRIMARY KEY,
-	    name varchar(255)
-	);
-
 	CREATE TABLE IF NOT EXISTS task(
 	    id SERIAL PRIMARY KEY,
 	    id_user INT REFERENCES username(id),
 	    name VARCHAR(255),
-	    id_status INT REFERENCES status(id),
-	    description TEXT
+	    description TEXT,
+	    deadline timestamp
 	);
 `
 
@@ -61,7 +58,7 @@ func (d *Database) CheckUser(login, password string) (int64, error) {
 	return userId, nil
 }
 
-func (d *Database) CreateUser(name, login, password string) (int64, error) {
+func (d *Database) SignIn(name, login, password string) (int64, error) {
 	const op = "database/postgres/query/CreateUser"
 
 	var userId int64
@@ -93,10 +90,59 @@ func (d *Database) CreateUser(name, login, password string) (int64, error) {
 				return 0, fmt.Errorf("%s: %w", op, ErrUserLoginExists)
 			}
 		}
-		return 0, fmt.Errorf("%s: failed to insert user`s(%d) credential", op, userId)
+		return 0, fmt.Errorf("%s: failed to insert signIn`s(%d) credential", op, userId)
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("%s: failed to commit transaction: %w", op, err)
 	}
 	return userId, nil
+}
+
+func (d *Database) CreateTask(userId int64, name, description string, date time.Time) (int64, error) {
+	const op = "database/postgres/query/CreateTask"
+
+	var taskId int64
+	//var count int
+
+	//query := ``
+
+	query := `INSERT INTO task(id_user, name, description, deadline)
+				VALUES($1, $2, $3, $4) RETURNING task.id`
+
+	err := d.db.QueryRow(query, userId, name, description, date).Scan(&taskId)
+	if err != nil {
+		return 0, fmt.Errorf("%s: failed to create task: %w", op, err)
+	}
+	return taskId, nil
+}
+
+type Task struct {
+	Name        string
+	Description string
+	Deadline    time.Time
+}
+
+func (d *Database) ListOfTask(userId int64) ([]Task, error) {
+	const op = "database/postgres/query/ListOfTask"
+
+	query := "SELECT name, description, deadline " +
+		"FROM task " +
+		"WHERE id_user = $1"
+	rows, err := d.db.Query(query, userId)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	defer rows.Close()
+
+	var res []Task
+
+	for rows.Next() {
+		var list Task
+		if err := rows.Scan(&list.Name, &list.Description, &list.Deadline); err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+
+		res = append(res, list)
+	}
+	return res, nil
 }

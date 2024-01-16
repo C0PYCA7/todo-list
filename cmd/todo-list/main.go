@@ -9,7 +9,9 @@ import (
 	"todo-list/internal/config"
 	"todo-list/internal/database/postgres"
 	"todo-list/internal/http-server/handlers/auth"
-	"todo-list/internal/http-server/handlers/user"
+	"todo-list/internal/http-server/handlers/list"
+	"todo-list/internal/http-server/handlers/signIn"
+	"todo-list/internal/http-server/handlers/task"
 )
 
 func main() {
@@ -33,7 +35,9 @@ func main() {
 	router.Use(middleware.Recoverer)
 
 	router.Post("/auth", auth.New(log, database))
-	router.Post("/newUser", user.New(log, database))
+	router.Post("/sign_in", signIn.New(log, database))
+	router.Post("/newTask", task.New(log, database))
+	router.Post("/list", list.New(log, database))
 
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Address))
 
